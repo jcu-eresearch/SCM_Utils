@@ -3,7 +3,7 @@
 # MIT License
 # 
 # Copyright (c) 2023 eResearch Centre, James Cook University
-# Author: Nigel Bajema
+# Author: NigelB
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,14 +26,44 @@
 # DO NOT EDIT IT or your changes will be overwritten.
 
 from enum import Enum
-from collections import OrderedDict
 from queue import Empty
+from decimal import Decimal
+from collections import OrderedDict
+
 import re
 
+
+SCM_DF_TRANSMISSION_ID_SIZE = 4
+SCM_DF_TRANSMISSION_CRC16_SIZE = 16
+SCM_DF_TRANSMISSION_SF_SIZE = 3
+SCM_DF_TRANSMISSION_MC_SIZE = 9
+SCM_DF_TRANSMISSION_PACKET_TYPE_SIZE = 5
+SCM_DF_TRACKING_FLAGS_SIZE = 4
+SCM_DF_TRACKING_TIMESLOT_SIZE = 4
+SCM_DF_TRACKING_LONGITUDE_SIZE = 22
+SCM_DF_TRACKING_LATITUDE_SIZE = 21
+SCM_DF_TRACKING_ORIENTATION_SIZE = 3
+SCM_DF_TRACKING_ACTIVITY_SIZE = 8
+SCM_DF_TRACKING_BATTERY_SIZE = 5
+SCM_DF_TRACKING_TEMP_MIN_SIZE = 6
+SCM_DF_TRACKING_TEMP_MAX_SIZE = 6
+SCM_DF_TRACKING_TEMP_ALERT_SIZE = 1
+SCM_DF_POINT_DELTA_KM_SIZE = 6
+SCM_DF_POINT_DELTA_M_SIZE = 7
+SCM_DF_POINT_DELTA_ANGLE_SIZE = 11
+SCM_DF_POINT_ACTIVITY_SIZE = 8
+SCM_DF_POINT_TEMP_ALERT_SIZE = 1
+SCM_DF_TRANSMISSION_BCH32_SIZE = 32
 
 # SCM_DF Constants
 SCM_DF_BUF_SIZE = 31
 SCM_DF_TRANSMISSION_RECORDS = 4
+SCM_DF_TEMP_MAX_HIGH = Decimal('52.0')
+SCM_DF_TEMP_MAX_LOW = Decimal('20.0')
+SCM_DF_TEMP_MIN_HIGH = Decimal('32.0')
+SCM_DF_TEMP_MIN_LOW = Decimal('0.0')
+SCM_DF_BAT_RANGE_HIGH = Decimal('4.6')
+SCM_DF_BAT_RANGE_LOW = Decimal('3.0')
 
 
 class DecodeError(Exception): pass
@@ -45,7 +75,8 @@ class BitQueue:
         self.source = source
         if source.startswith("0x") or source.startswith("0X"):
             self.source = source[2::]
-
+        if ' ' in self.source:
+            self.source = self.source.replace(" ", '')
         self.data = None
         self.reset()
 
@@ -91,7 +122,6 @@ class BitQueue:
 
 class SCM_DF_Transmission_Payload(Enum):
     SCM_DF_Transmission_Payload_Tracking = 0
-    SCM_DF_Transmission_Payload_Status = 1
 
 
 def scm_df_decode(hex_string):
@@ -105,7 +135,7 @@ def scm_df_decode(hex_string):
     if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking:
         data['payload'] = OrderedDict()
         data['payload']['tracking'] = OrderedDict()
-        data['payload']['tracking']['flags'] = int(q.pop(5), 2)
+        data['payload']['tracking']['flags'] = int(q.pop(4), 2)
         data['payload']['tracking']['timeslot'] = int(q.pop(4), 2)
         data['payload']['tracking']['longitude'] = int(q.pop(22), 2)
         data['payload']['tracking']['latitude'] = int(q.pop(21), 2)
@@ -114,29 +144,23 @@ def scm_df_decode(hex_string):
         data['payload']['tracking']['battery'] = int(q.pop(5), 2)
         data['payload']['tracking']['temp_min'] = int(q.pop(6), 2)
         data['payload']['tracking']['temp_max'] = int(q.pop(6), 2)
+        data['payload']['tracking']['temp_alert'] = int(q.pop(1), 2)
         data['payload']['tracking']['points'] = [OrderedDict(), OrderedDict(), OrderedDict()]
         data['payload']['tracking']['points'][0]['delta_km'] = int(q.pop(6), 2)
         data['payload']['tracking']['points'][0]['delta_m'] = int(q.pop(7), 2)
         data['payload']['tracking']['points'][0]['delta_angle'] = int(q.pop(11), 2)
         data['payload']['tracking']['points'][0]['activity'] = int(q.pop(8), 2)
-        data['payload']['tracking']['points'][0]['temp'] = int(q.pop(1), 2)
+        data['payload']['tracking']['points'][0]['temp_alert'] = int(q.pop(1), 2)
         data['payload']['tracking']['points'][1]['delta_km'] = int(q.pop(6), 2)
         data['payload']['tracking']['points'][1]['delta_m'] = int(q.pop(7), 2)
         data['payload']['tracking']['points'][1]['delta_angle'] = int(q.pop(11), 2)
         data['payload']['tracking']['points'][1]['activity'] = int(q.pop(8), 2)
-        data['payload']['tracking']['points'][1]['temp'] = int(q.pop(1), 2)
+        data['payload']['tracking']['points'][1]['temp_alert'] = int(q.pop(1), 2)
         data['payload']['tracking']['points'][2]['delta_km'] = int(q.pop(6), 2)
         data['payload']['tracking']['points'][2]['delta_m'] = int(q.pop(7), 2)
         data['payload']['tracking']['points'][2]['delta_angle'] = int(q.pop(11), 2)
         data['payload']['tracking']['points'][2]['activity'] = int(q.pop(8), 2)
-        data['payload']['tracking']['points'][2]['temp'] = int(q.pop(1), 2)
-    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Status:
-        data['payload']['status'] = OrderedDict()
-        data['payload']['status']['flags'] = int(q.pop(5), 2)
-        data['payload']['status']['timeslot'] = int(q.pop(4), 2)
-        data['payload']['status']['longitude'] = int(q.pop(22), 2)
-        data['payload']['status']['latitude'] = int(q.pop(21), 2)
-        data['payload']['status']['padding_0'] = int(q.pop(127), 2)
+        data['payload']['tracking']['points'][2]['temp_alert'] = int(q.pop(1), 2)
     data['bch32'] = int(q.pop(32), 2)
     if q.size() != 0: raise DecodeError('Not all data decoded. {} bits remaining'.format(q.size()))
     return data
@@ -150,7 +174,7 @@ def scm_df_encode(data):
     q.push(data['MC'], 9)
     q.push(data['packet_type'], 5)
     if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking:
-        q.push(data['payload']['tracking']['flags'], 5)
+        q.push(data['payload']['tracking']['flags'], 4)
         q.push(data['payload']['tracking']['timeslot'], 4)
         q.push(data['payload']['tracking']['longitude'], 22)
         q.push(data['payload']['tracking']['latitude'], 21)
@@ -159,27 +183,22 @@ def scm_df_encode(data):
         q.push(data['payload']['tracking']['battery'], 5)
         q.push(data['payload']['tracking']['temp_min'], 6)
         q.push(data['payload']['tracking']['temp_max'], 6)
+        q.push(data['payload']['tracking']['temp_alert'], 1)
         q.push(data['payload']['tracking']['points'][0]['delta_km'], 6)
         q.push(data['payload']['tracking']['points'][0]['delta_m'], 7)
         q.push(data['payload']['tracking']['points'][0]['delta_angle'], 11)
         q.push(data['payload']['tracking']['points'][0]['activity'], 8)
-        q.push(data['payload']['tracking']['points'][0]['temp'], 1)
+        q.push(data['payload']['tracking']['points'][0]['temp_alert'], 1)
         q.push(data['payload']['tracking']['points'][1]['delta_km'], 6)
         q.push(data['payload']['tracking']['points'][1]['delta_m'], 7)
         q.push(data['payload']['tracking']['points'][1]['delta_angle'], 11)
         q.push(data['payload']['tracking']['points'][1]['activity'], 8)
-        q.push(data['payload']['tracking']['points'][1]['temp'], 1)
+        q.push(data['payload']['tracking']['points'][1]['temp_alert'], 1)
         q.push(data['payload']['tracking']['points'][2]['delta_km'], 6)
         q.push(data['payload']['tracking']['points'][2]['delta_m'], 7)
         q.push(data['payload']['tracking']['points'][2]['delta_angle'], 11)
         q.push(data['payload']['tracking']['points'][2]['activity'], 8)
-        q.push(data['payload']['tracking']['points'][2]['temp'], 1)
-    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Status:
-        q.push(data['payload']['status']['flags'], 5)
-        q.push(data['payload']['status']['timeslot'], 4)
-        q.push(data['payload']['status']['longitude'], 22)
-        q.push(data['payload']['status']['latitude'], 21)
-        q.push(0, 127)
+        q.push(data['payload']['tracking']['points'][2]['temp_alert'], 1)
     q.push(data['bch32'], 32)
     result = q.get_bytes()
     if len(result) != SCM_DF_BUF_SIZE:
