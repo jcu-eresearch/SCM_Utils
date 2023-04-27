@@ -43,7 +43,7 @@ def scm_message_decode(raw_message):
     scm_message_decode then converts the decoded quantized values into real world values.
 
     :param raw_message: The raw message represented as a Hex encoded string.
-                        For example: "03dc8000002022fd2fed93000d66600000000000000000000000007eb450de"
+                        For example: "0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9"
     :return: An OrderedDict containing the decoded data.
     """
     unpacked = scm_df_decode(raw_message)
