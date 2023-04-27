@@ -30,9 +30,10 @@ setup(name='SCM_Utils',
       description='Utilities for the SCM Ear Tag Project.',
       author='NigelB',
       packages=find_packages(),
-      install_requires=[],
+      install_requires=["pytz", "tzlocal", "python-dateutil", "crc", "geographiclib"],
       entry_points={
           "console_scripts": [
+
           ]
       },
       )
