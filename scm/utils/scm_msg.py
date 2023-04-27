@@ -39,7 +39,8 @@ from scm.utils.constants import *
 
 def scm_message_decode(raw_message):
     """
-    scm_message_decode decodes and converts the raw_message to an OrderedDict representing the transmitted data.
+    scm_message_decode decodes and converts the raw_message to an OrderedDict by calling scm.generated.scm_df_decode.
+    scm_message_decode then converts the decoded quantized values into real world values.
 
     :param raw_message: The raw message represented as a Hex encoded string.
                         For example: "03dc8000002022fd2fed93000d66600000000000000000000000007eb450de"
@@ -142,7 +143,7 @@ def scm_message_decode(raw_message):
 @lru_cache(maxsize=2)
 def calculate_battery_step():
     """
-    calculate_battery_step calculates the step value for each count of the battery field.
+    calculate_battery_step calculates the quantized step value for each count of the battery field.
     :return: The step size
     """
     return (SCM_DF_BAT_RANGE_HIGH - SCM_DF_BAT_RANGE_LOW) / (2 ** SCM_DF_TRACKING_BATTERY_SIZE)
@@ -151,7 +152,7 @@ def calculate_battery_step():
 @lru_cache(maxsize=2)
 def calculate_temp_max_step():
     """
-    calculate_temp_max_step calculates the step value for each count of the temp_min field.
+    calculate_temp_max_step calculates the quantized step value for each count of the temp_min field.
     :return:
     """
     return (SCM_DF_TEMP_MAX_HIGH - SCM_DF_TEMP_MAX_LOW) / (2 ** SCM_DF_TRACKING_TEMP_MAX_SIZE)
@@ -160,7 +161,7 @@ def calculate_temp_max_step():
 @lru_cache(maxsize=2)
 def calculate_temp_min_step():
     """
-    calculate_temp_min_step calculates the step value for each count of the temp_min field.
+    calculate_temp_min_step calculates the quantized step value for each count of the temp_min field.
     :return:
     """
     return (SCM_DF_TEMP_MIN_HIGH - SCM_DF_TEMP_MIN_LOW) / (2 ** SCM_DF_TRACKING_TEMP_MIN_SIZE)
@@ -169,7 +170,7 @@ def calculate_temp_min_step():
 @lru_cache(maxsize=2)
 def calculate_point_delta_m_step():
     """
-    calculate_point_delta_m_step calculates the step value for each count of the point_delta_m field.
+    calculate_point_delta_m_step calculates the quantized step value for each count of the point_delta_m field.
     :return:
     """
     return Decimal('1000') / (2 ** SCM_DF_POINT_DELTA_M_SIZE)
@@ -178,7 +179,7 @@ def calculate_point_delta_m_step():
 @lru_cache(maxsize=2)
 def calculate_point_bearing_step():
     """
-    calculate_point_bearing_step calculates the step value for each count of the point_delta_angle field.
+    calculate_point_bearing_step calculates the quantized step value for each count of the point_delta_angle field.
     :return:
     """
     return Decimal('360') / (2 ** SCM_DF_POINT_DELTA_ANGLE_SIZE)
