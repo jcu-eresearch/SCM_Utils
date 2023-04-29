@@ -26,7 +26,9 @@ import struct
 from decimal import Decimal
 from functools import lru_cache
 from collections import OrderedDict
-from geographiclib.geodesic import Geodesic
+# from geographiclib.geodesic import Geodesic
+from geopy import Point
+from geopy.distance import great_circle
 
 
 from scm.generated.SCM_DF import scm_df_decode, SCM_DF_Transmission_Payload, SCM_DF_TEMP_MAX_LOW, \
@@ -44,7 +46,7 @@ def scm_message_decode(raw_message):
 
     :param raw_message: The raw message represented as a Hex encoded string.
                         For example: "0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9"
-    :return: An OrderedDict containing the decoded data.
+    :return: An OrderedDict containing the decoded and de-quantized data.
     """
     unpacked = scm_df_decode(raw_message)
     result = OrderedDict()
@@ -75,7 +77,8 @@ def scm_message_decode(raw_message):
                 tracking_payload[transmission_payload_tracking_longitude],
                 32 - SCM_DF_TRACKING_LONGITUDE_SIZE
             )[0]
-        focus_longitude = result_tracking_payload[transmission_payload_tracking_longitude]
+        focus_longitude = Decimal(result_tracking_payload[transmission_payload_tracking_longitude]) / Decimal(1000000)
+        result_tracking_payload[transmission_payload_tracking_longitude] = focus_longitude
 
         # Convert Latitude
         result_tracking_payload[transmission_payload_tracking_latitude] = \
@@ -83,7 +86,8 @@ def scm_message_decode(raw_message):
                 tracking_payload[transmission_payload_tracking_latitude],
                 32 - SCM_DF_TRACKING_LATITUDE_SIZE
             )[0]
-        focus_latitude = result_tracking_payload[transmission_payload_tracking_latitude]
+        focus_latitude = Decimal(result_tracking_payload[transmission_payload_tracking_latitude]) / Decimal(1000000)
+        result_tracking_payload[transmission_payload_tracking_latitude] = focus_latitude
 
         # Convert Orientation
         result_tracking_payload[transmission_payload_tracking_orientation] = \
@@ -110,7 +114,7 @@ def scm_message_decode(raw_message):
             tracking_payload[transmission_payload_tracking_temp_alert] == 1
 
         # Convert the associated points
-        geod = Geodesic.WGS84
+        # geod = Geodesic.WGS84
         result_tracking_payload[transmission_payload_tracking_points] = []
         result_points = result_tracking_payload[transmission_payload_tracking_points]
         for point in tracking_payload[transmission_payload_tracking_points]:
@@ -125,7 +129,21 @@ def scm_message_decode(raw_message):
             bearing = Decimal(point[transmission_payload_tracking_points_delta_angle]) * calculate_point_bearing_step()
             activity = point[transmission_payload_tracking_points_activity] 
             temp_alert = point[transmission_payload_tracking_points_temp_alert] == 1
-            computed_position = geod.Direct(focus_latitude, focus_longitude, bearing, float(total_delta_m))
+
+            # Geodesy Direct Problem:
+            #  https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid#Geodesics_on_an_ellipsoid_of_revolution
+            #
+            # From https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid#Applications:
+            #   The direct and inverse geodesic problems no longer play the central role in geodesy that they once did.
+            #   Instead of solving adjustment of geodetic networks as a two-dimensional problem in spheroidal
+            #   trigonometry, these problems are now solved by three-dimensional methods
+            #   (Vincenty & Bowring 1978)[https://www.ngs.noaa.gov/PUBS_LIB/ApplicationOfThreeDimensionalGeodesyToAdjustmentsOfHorizontalNetworks_TM_NOS_NGS13.pdf].
+            # computed_position = geod.Direct(focus_latitude, focus_longitude, bearing, float(total_delta_m))
+
+            # TinyGPS library uses the great-circle distance computation:
+            # https://github.com/mikalhart/TinyGPS/blob/db4ef9c97af767e7345f5ccb277ac3bd1a2eb81f/TinyGPS.cpp#L296-L339
+            focus = Point(float(focus_latitude), float(focus_longitude))
+            computed_position = great_circle(meters=float(total_delta_m)).destination(focus, bearing)
 
             # Populate results
             res[transmission_payload_tracking_points_delta_km] = delta_d_km
@@ -134,8 +152,8 @@ def scm_message_decode(raw_message):
             res[transmission_payload_tracking_points_delta_angle] = bearing
             res[transmission_payload_tracking_points_activity] = activity
             res[transmission_payload_tracking_points_temp_alert] = temp_alert
-            res[transmission_payload_tracking_latitude]  = computed_position['lat2']
-            res[transmission_payload_tracking_longitude] = computed_position['lon2']
+            res[transmission_payload_tracking_latitude]  = computed_position.latitude #computed_position['lat2']
+            res[transmission_payload_tracking_longitude] = computed_position.longitude #computed_position['lon2']
 
     return result
 
@@ -197,3 +215,8 @@ def unpack_signed_int_32(value, shift):
     _value_h = _value_h.zfill(8)
     _value_b = bytes.fromhex(_value_h)
     return struct.unpack(">i", _value_b)
+
+
+if __name__ == "__main__":
+    from pprint import pprint
+    pprint(scm_message_decode("0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9"))
