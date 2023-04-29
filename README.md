@@ -1,6 +1,12 @@
 # SCM Utils
 SCM_Utils is a library of utilities for the Space Cows Project
 
+## ToDo
+Thing left to do:
+
+  - [ ] Validate the computed positions
+  - [ ] Deal with the over-precision of the computer positions.
+
 ## Install
 ```bash
 $ pip install git+https://github.com/jcu-eresearch/SCM_Utils.git
