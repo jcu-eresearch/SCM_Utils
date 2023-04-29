@@ -4,8 +4,9 @@ SCM_Utils is a library of utilities for the Space Cows Project
 ## ToDo
 Thing left to do:
 
-  - [ ] Validate the computed positions
+  - [ ] Validate the computed positions.
   - [ ] Deal with the over-precision of the computed positions.
+  - [ ] Migrate to the new message format.
 
 ## Install
 ```bash
