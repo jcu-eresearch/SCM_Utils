@@ -138,7 +138,7 @@ def scm_message_decode(raw_message):
             #   Instead of solving adjustment of geodetic networks as a two-dimensional problem in spheroidal
             #   trigonometry, these problems are now solved by three-dimensional methods
             #   (Vincenty & Bowring 1978)[https://www.ngs.noaa.gov/PUBS_LIB/ApplicationOfThreeDimensionalGeodesyToAdjustmentsOfHorizontalNetworks_TM_NOS_NGS13.pdf].
-            # computed_position = geod.Direct(focus_latitude, focus_longitude, bearing, float(total_delta_m))
+            # computed_position = geod.Direct(float(focus_latitude), float(focus_longitude), bearing, float(total_delta_m))
 
             # TinyGPS library uses the great-circle distance computation:
             # https://github.com/mikalhart/TinyGPS/blob/db4ef9c97af767e7345f5ccb277ac3bd1a2eb81f/TinyGPS.cpp#L296-L339
