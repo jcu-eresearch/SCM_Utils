@@ -175,7 +175,7 @@ def scm_message_decode(raw_message):
     return result
 
 
-def scm_processed_message_decode(message_hex, service_flag=0, message_counter=0, crc16_ok=True, bch32_ok=True):
+def scm_processed_message_decode(message_hex, extra_id=0, service_flag=0, message_counter=0, crc16_ok=True, bch32_ok=True):
     """
     scm_processed_message_decode converts a processed message to the length required by scm_message_decode and then
     calls pad_processed_message on the result. It then populated the SF (service_flag) and MC (message_counter) from the
@@ -190,6 +190,7 @@ def scm_processed_message_decode(message_hex, service_flag=0, message_counter=0,
     """
 
     result = scm_message_decode(pad_processed_message(message_hex))
+    result[transmission_id] = extra_id
     result[transmission_SF] = service_flag
     result[transmission_MC] = message_counter
 
