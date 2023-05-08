@@ -21,8 +21,9 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-
+import math
 import struct
+from copy import deepcopy
 from decimal import Decimal
 from functools import lru_cache
 from collections import OrderedDict
@@ -30,11 +31,14 @@ from collections import OrderedDict
 from geopy import Point
 from geopy.distance import great_circle
 
-
 from scm.generated.SCM_DF import scm_df_decode, SCM_DF_Transmission_Payload, SCM_DF_TEMP_MAX_LOW, \
     SCM_DF_TRACKING_LONGITUDE_SIZE, SCM_DF_TRACKING_LATITUDE_SIZE, SCM_DF_BAT_RANGE_LOW, SCM_DF_BAT_RANGE_HIGH, \
     SCM_DF_TRACKING_BATTERY_SIZE, SCM_DF_TEMP_MIN_HIGH, SCM_DF_TEMP_MIN_LOW, SCM_DF_TRACKING_TEMP_MIN_SIZE, \
-    SCM_DF_TEMP_MAX_HIGH, SCM_DF_TRACKING_TEMP_MAX_SIZE, SCM_DF_POINT_DELTA_M_SIZE, SCM_DF_POINT_DELTA_ANGLE_SIZE
+    SCM_DF_TEMP_MAX_HIGH, SCM_DF_TRACKING_TEMP_MAX_SIZE, SCM_DF_POINT_DELTA_M_SIZE, SCM_DF_POINT_DELTA_ANGLE_SIZE, \
+    SCM_DF_BUF_SIZE, SCM_DF_TRANSMISSION_BCH32_SIZE, SCM_DF_TRANSMISSION_CRC16_SIZE, SCM_DF_TRANSMISSION_SF_SIZE, \
+    SCM_DF_TRANSMISSION_MC_SIZE, SCM_DF_TRANSMISSION_ID_SIZE, SCM_DF_GPS_MULTIPLIER, scm_df_encode
+from scm.kineis.checksums import get_crc16_calculator, get_bch32_calculator
+from scm.kineis.checksums_kineis import BCH32
 
 from scm.utils.constants import *
 
@@ -48,11 +52,14 @@ def scm_message_decode(raw_message):
                         For example: "0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9"
     :return: An OrderedDict containing the decoded and de-quantized data.
     """
+
+    ensure_message_length(raw_message)
     unpacked = scm_df_decode(raw_message)
+    scm_validate_checksums(unpacked)
     result = OrderedDict()
 
-    # Copy over the CRC, DF, MC and packet_typpe
-    for key in [transmission_crc16, transmission_SF, transmission_MC, transmission_packet_type]:
+    # Copy over the ID, CRC, DF, MC and packet_typpe
+    for key in [transmission_id, transmission_crc16, transmission_SF, transmission_MC, transmission_packet_type]:
         result[key] = unpacked[key]
 
     # If this is a tracking packet, unpack it.
@@ -77,7 +84,8 @@ def scm_message_decode(raw_message):
                 tracking_payload[transmission_payload_tracking_longitude],
                 32 - SCM_DF_TRACKING_LONGITUDE_SIZE
             )[0]
-        focus_longitude = Decimal(result_tracking_payload[transmission_payload_tracking_longitude]) / Decimal(1000000)
+        focus_longitude = Decimal(result_tracking_payload[transmission_payload_tracking_longitude]) / Decimal(
+            SCM_DF_GPS_MULTIPLIER)
         result_tracking_payload[transmission_payload_tracking_longitude] = focus_longitude
 
         # Convert Latitude
@@ -86,7 +94,8 @@ def scm_message_decode(raw_message):
                 tracking_payload[transmission_payload_tracking_latitude],
                 32 - SCM_DF_TRACKING_LATITUDE_SIZE
             )[0]
-        focus_latitude = Decimal(result_tracking_payload[transmission_payload_tracking_latitude]) / Decimal(1000000)
+        focus_latitude = Decimal(result_tracking_payload[transmission_payload_tracking_latitude]) / Decimal(
+            SCM_DF_GPS_MULTIPLIER)
         result_tracking_payload[transmission_payload_tracking_latitude] = focus_latitude
 
         # Convert Orientation
@@ -99,15 +108,18 @@ def scm_message_decode(raw_message):
 
         # Convert Battery voltage
         result_tracking_payload[transmission_payload_tracking_battery] = \
-            (Decimal(tracking_payload[transmission_payload_tracking_battery]) * calculate_battery_step()) + SCM_DF_BAT_RANGE_LOW
+            (Decimal(tracking_payload[
+                         transmission_payload_tracking_battery]) * calculate_battery_step()) + SCM_DF_BAT_RANGE_LOW
 
         # Convert Temperature Min
         result_tracking_payload[transmission_payload_tracking_temp_min] = \
-            (Decimal(tracking_payload[transmission_payload_tracking_temp_min]) * calculate_temp_min_step()) + SCM_DF_TEMP_MIN_LOW
+            (Decimal(tracking_payload[
+                         transmission_payload_tracking_temp_min]) * calculate_temp_min_step()) + SCM_DF_TEMP_MIN_LOW
 
         # Convert Temperature Max
         result_tracking_payload[transmission_payload_tracking_temp_max] = \
-            (Decimal(tracking_payload[transmission_payload_tracking_temp_max]) * calculate_temp_max_step()) + SCM_DF_TEMP_MAX_LOW
+            (Decimal(tracking_payload[
+                         transmission_payload_tracking_temp_max]) * calculate_temp_max_step()) + SCM_DF_TEMP_MAX_LOW
 
         # Convert Temperature Alert
         result_tracking_payload[transmission_payload_tracking_temp_alert] = \
@@ -118,7 +130,6 @@ def scm_message_decode(raw_message):
         result_tracking_payload[transmission_payload_tracking_points] = []
         result_points = result_tracking_payload[transmission_payload_tracking_points]
         for point in tracking_payload[transmission_payload_tracking_points]:
-            print(point)
             res = OrderedDict()
             result_points.append(res)
 
@@ -127,7 +138,7 @@ def scm_message_decode(raw_message):
             delta_d_m = Decimal(point[transmission_payload_tracking_points_delta_m]) * calculate_point_delta_m_step()
             total_delta_m = (delta_d_km * Decimal(1000)) + delta_d_m
             bearing = Decimal(point[transmission_payload_tracking_points_delta_angle]) * calculate_point_bearing_step()
-            activity = point[transmission_payload_tracking_points_activity] 
+            activity = point[transmission_payload_tracking_points_activity]
             temp_alert = point[transmission_payload_tracking_points_temp_alert] == 1
 
             # Geodesy Direct Problem:
@@ -152,10 +163,104 @@ def scm_message_decode(raw_message):
             res[transmission_payload_tracking_points_delta_angle] = bearing
             res[transmission_payload_tracking_points_activity] = activity
             res[transmission_payload_tracking_points_temp_alert] = temp_alert
-            res[transmission_payload_tracking_latitude]  = computed_position.latitude #computed_position['lat2']
-            res[transmission_payload_tracking_longitude] = computed_position.longitude #computed_position['lon2']
+            res[transmission_payload_tracking_latitude] = computed_position.latitude  # computed_position['lat2']
+            res[transmission_payload_tracking_longitude] = computed_position.longitude  # computed_position['lon2']
+
+    # Copy over the BCH32
+    for key in [transmission_bch32, transmission_crc16_verified, transmission_bch32_verified]:
+        result[key] = unpacked[key]
+
+    result[transmission_decoded_type] = transmission_decoded_raw_type
 
     return result
+
+
+def scm_processed_message_decode(message_hex, service_flag=0, message_counter=0, crc16_ok=True, bch32_ok=True):
+    """
+    scm_processed_message_decode converts a processed message to the length required by scm_message_decode and then
+    calls pad_processed_message on the result. It then populated the SF (service_flag) and MC (message_counter) from the
+    passed in parameters.
+
+    :param message_hex: The processed message hex string.
+    :param service_flag: The processed message's service_flag field.
+    :param message_counter: The processed message's message counter field.
+    :param crc16_ok:
+    :param bch32_ok:
+    :return: An OrderedDict containing the decoded and de-quantized data.
+    """
+
+    result = scm_message_decode(pad_processed_message(message_hex))
+    result[transmission_SF] = service_flag
+    result[transmission_MC] = message_counter
+
+    # We don't have the original
+    result[transmission_crc16_verified] = crc16_ok
+    result[transmission_bch32_verified] = bch32_ok
+
+    result[transmission_decoded_type] = transmission_decoded_processed_type
+    return result
+
+
+def pad_processed_message(processed_message_hex):
+    """
+    pad_processed_message takes the stripped down processed_message and add a prefix and suffix of 0x0s to pad the
+    message out to the length required by scm_message_decode and then returns the result of calling scm_message_decode
+    on the result.
+    :param processed_message_hex: the hex string of the processed message
+    :return: the processed message padded out to the required (SCM_DF_BUF_SIZE * 8) bits
+    """
+    if (len(processed_message_hex) * 4) != SCM_DF_BUF_SIZE * 8:
+        if (len(processed_message_hex) * 4) == (
+                (SCM_DF_BUF_SIZE * 8) - (
+                SCM_DF_TRANSMISSION_BCH32_SIZE +
+                SCM_DF_TRANSMISSION_CRC16_SIZE +
+                SCM_DF_TRANSMISSION_SF_SIZE +
+                SCM_DF_TRANSMISSION_MC_SIZE +
+                SCM_DF_TRANSMISSION_ID_SIZE
+        )
+        ):
+            processed_message_hex = "{prefix}{message}{suffix}".format(
+                prefix="0" * int((
+                                         SCM_DF_TRANSMISSION_ID_SIZE +
+                                         SCM_DF_TRANSMISSION_CRC16_SIZE +
+                                         SCM_DF_TRANSMISSION_SF_SIZE +
+                                         SCM_DF_TRANSMISSION_MC_SIZE
+                                 ) / 4),
+                message=processed_message_hex,
+                suffix="0" * int(SCM_DF_TRANSMISSION_BCH32_SIZE / 4)
+            )
+
+    ensure_message_length(processed_message_hex)
+
+    return processed_message_hex
+
+
+def ensure_message_length(message):
+    if (len(message) * 4) != SCM_DF_BUF_SIZE * 8:
+        raise InvalidMessageSize(
+            "Expected message length of {} bytes, received {} bytes.".format(
+                SCM_DF_BUF_SIZE, (len(message) / 2)))
+
+
+def scm_validate_checksums(decoded_message: OrderedDict):
+    crc16_calc = get_crc16_calculator()
+    bch32_calc = get_bch32_calculator()
+    _decoded_message = deepcopy(decoded_message)
+
+    encoded_message = scm_df_encode(_decoded_message)
+    bch32_message = encoded_message[:(SCM_DF_BUF_SIZE - int(SCM_DF_TRANSMISSION_BCH32_SIZE / 8))]
+
+    _decoded_message[transmission_crc16] = 0
+    encoded_message = scm_df_encode(_decoded_message)
+    crc16_message = encoded_message[math.ceil(SCM_DF_TRANSMISSION_ID_SIZE / 8) : SCM_DF_BUF_SIZE - int(SCM_DF_TRANSMISSION_BCH32_SIZE/8)]
+
+    decoded_message[transmission_crc16_verified] = crc16_calc.verify(crc16_message, decoded_message[transmission_crc16])
+    decoded_message[transmission_bch32_verified] = bch32_calc.verify(bch32_message, decoded_message[transmission_bch32])
+    return decoded_message[transmission_crc16_verified] and decoded_message[transmission_bch32_verified]
+
+
+class InvalidMessageSize(Exception):
+    pass
 
 
 @lru_cache(maxsize=2)
