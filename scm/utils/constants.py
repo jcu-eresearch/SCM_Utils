@@ -22,7 +22,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 
+transmission_id = "id"
 transmission_crc16 = "crc16"
+transmission_crc16_verified = "crc16_verified"
 transmission_SF = "SF"
 transmission_MC = "MC"
 transmission_packet_type = "packet_type"
@@ -45,3 +47,9 @@ transmission_payload_tracking_points_total_delta_m = "total_delta_m"
 transmission_payload_tracking_points_delta_angle = "delta_angle"
 transmission_payload_tracking_points_activity = "activity"
 transmission_payload_tracking_points_temp_alert = "temp_alert"
+transmission_bch32 = "bch32"
+transmission_bch32_verified = "bch32_verified"
+transmission_decoded_type = "decode_type"
+transmission_decoded_raw_type = "raw"
+transmission_decoded_processed_type = "processed"
+
