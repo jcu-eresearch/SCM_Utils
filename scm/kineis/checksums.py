@@ -27,6 +27,7 @@ from crc import Calculator, Configuration
 
 CRC16_POLYNOMIAL = 0x1021
 BCH32_POLYNOMIAL = 0xEE5B42FD
+FCS32_POLYNOMIAL = 0x04C11DB7
 
 
 def get_bch32_calculator():
@@ -38,6 +39,18 @@ def get_bch32_calculator():
     config = Configuration(
         width=32,
         polynomial=BCH32_POLYNOMIAL,
+        init_value=0x00,
+        final_xor_value=0x00,
+        reverse_input=False,
+        reverse_output=False,
+    )
+    return Calculator(config)
+
+
+def get_fcs32_calculator():
+    config = Configuration(
+        width=32,
+        polynomial=FCS32_POLYNOMIAL,
         init_value=0x00,
         final_xor_value=0x00,
         reverse_input=False,
@@ -61,5 +74,3 @@ def get_crc16_calculator():
         reverse_output=False,
     )
     return Calculator(config)
-
-
