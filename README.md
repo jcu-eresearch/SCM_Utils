@@ -7,6 +7,8 @@ Thing left to do:
   - [ ] Validate the computed positions.
   - [ ] Deal with the over-precision of the computed positions.
   - [ ] Migrate to the new message format.
+  - [x] Handle processed messages
+  - [x] Verify checksums on raw messages
 
 ## Install
 ```bash
