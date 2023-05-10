@@ -23,9 +23,9 @@ $ pip install git+https://github.com/jcu-eresearch/SCM_Utils.git
 ### Decode a Raw Message Hex String
 
 ```python
-from scm.utils.scm_msg import scm_message_decode
+from scm.utils.scm_msg import scm_raw_message_decode
 
-result = scm_message_decode("013a4049000045fb1fdb210000000007840000041e2000032f2400002e2930")
+result = scm_raw_message_decode("013a4049000045fb1fdb210000000007840000041e2000032f2400002e2930")
 ```
 
 Where result is:

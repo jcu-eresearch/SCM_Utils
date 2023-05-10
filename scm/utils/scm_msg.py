@@ -43,7 +43,7 @@ from scm.kineis.checksums_kineis import BCH32
 from scm.utils.constants import *
 
 
-def scm_message_decode(raw_message):
+def scm_raw_message_decode(raw_message):
     """
     scm_message_decode decodes and converts the raw_message to an OrderedDict by calling scm.generated.scm_df_decode.
     scm_message_decode then converts the decoded quantized values into real world values.
@@ -189,7 +189,7 @@ def scm_processed_message_decode(message_hex, extra_id=0, service_flag=0, messag
     :return: An OrderedDict containing the decoded and de-quantized data.
     """
 
-    result = scm_message_decode(pad_processed_message(message_hex))
+    result = scm_raw_message_decode(pad_processed_message(message_hex))
     result[transmission_id] = extra_id
     result[transmission_SF] = service_flag
     result[transmission_MC] = message_counter
@@ -325,4 +325,4 @@ def unpack_signed_int_32(value, shift):
 
 if __name__ == "__main__":
     from pprint import pprint
-    pprint(scm_message_decode("0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9"))
+    pprint(scm_raw_message_decode("0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9"))

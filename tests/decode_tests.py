@@ -31,7 +31,7 @@ from unittest import TestCase
 
 from scm.utils.constants import transmission_bch32_verified, transmission_crc16_verified, transmission_crc16, \
     transmission_bch32, transmission_decoded_type, transmission_decoded_raw_type
-from scm.utils.scm_msg import scm_message_decode, scm_processed_message_decode
+from scm.utils.scm_msg import scm_raw_message_decode, scm_processed_message_decode
 
 
 class TestDecoder(TestCase):
@@ -115,7 +115,7 @@ class TestDecoder(TestCase):
     }
 
     def test_decoder_raw(self):
-        message = scm_message_decode(self.raw['values']['raw_data'])
+        message = scm_raw_message_decode(self.raw['values']['raw_data'])
         self.assertTrue(message[transmission_crc16_verified])
         self.assertTrue(message[transmission_bch32_verified])
         self.assertEqual(self.result, loads(dumps(message, cls=TransmissionEncoder)))
@@ -144,5 +144,3 @@ class TransmissionEncoder(JSONEncoder):
         elif isinstance(to_encode, Decimal):
             return str(to_encode)
         return JSONEncoder.default(self, to_encode)
-
-
