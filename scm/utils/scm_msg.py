@@ -38,7 +38,6 @@ from scm.generated.SCM_DF import scm_df_decode, SCM_DF_Transmission_Payload, SCM
     SCM_DF_BUF_SIZE, SCM_DF_TRANSMISSION_BCH32_SIZE, SCM_DF_TRANSMISSION_CRC16_SIZE, SCM_DF_TRANSMISSION_SF_SIZE, \
     SCM_DF_TRANSMISSION_MC_SIZE, SCM_DF_TRANSMISSION_ID_SIZE, SCM_DF_GPS_MULTIPLIER, scm_df_encode
 from scm.kineis.checksums import get_crc16_calculator, get_bch32_calculator
-from scm.kineis.checksums_kineis import BCH32
 
 from scm.utils.constants import *
 
