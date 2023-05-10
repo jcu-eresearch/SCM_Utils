@@ -166,7 +166,6 @@ OrderedDict([
                      ('latitude', -19.32912466132596),
                      ('longitude', 146.76053479568455)]),
                  OrderedDict([
-
                      ('delta_km', 0),
                      ('delta_m', Decimal('250.0000')),
                      ('total_delta_m', Decimal('250.0000')),
