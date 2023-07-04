@@ -24,25 +24,35 @@
 import math
 import struct
 from copy import deepcopy
+import datetime
 from decimal import Decimal
 from functools import lru_cache
 from collections import OrderedDict
+
+import tzlocal
 # from geographiclib.geodesic import Geodesic
 from geopy import Point
 from geopy.distance import great_circle
 
-from scm.generated.SCM_DF import scm_df_decode, SCM_DF_Transmission_Payload, SCM_DF_TEMP_MAX_LOW, \
-    SCM_DF_TRACKING_LONGITUDE_SIZE, SCM_DF_TRACKING_LATITUDE_SIZE, SCM_DF_BAT_RANGE_LOW, SCM_DF_BAT_RANGE_HIGH, \
-    SCM_DF_TRACKING_BATTERY_SIZE, SCM_DF_TEMP_MIN_HIGH, SCM_DF_TEMP_MIN_LOW, SCM_DF_TRACKING_TEMP_MIN_SIZE, \
-    SCM_DF_TEMP_MAX_HIGH, SCM_DF_TRACKING_TEMP_MAX_SIZE, SCM_DF_POINT_DELTA_M_SIZE, SCM_DF_POINT_DELTA_ANGLE_SIZE, \
-    SCM_DF_BUF_SIZE, SCM_DF_TRANSMISSION_BCH32_SIZE, SCM_DF_TRANSMISSION_CRC16_SIZE, SCM_DF_TRANSMISSION_SF_SIZE, \
-    SCM_DF_TRANSMISSION_MC_SIZE, SCM_DF_TRANSMISSION_ID_SIZE, SCM_DF_GPS_MULTIPLIER, scm_df_encode
+from scm.generated.SCM_DF import *
 from scm.kineis.checksums import get_crc16_calculator, get_bch32_calculator
 
 from scm.utils.constants import *
+from scm.utils.scm_epoch import DeviceEpoch
 
 
-def scm_raw_message_decode(raw_message):
+class SCM_DF_Transmission_Status_v1_0_Mode(Enum):
+    UNKNOOWN = 0
+    Testing = 1
+    Certification = 2
+    GPS_Test = 3
+    Transmission_Test = 4
+    Hibernation = 5
+    BLE_Menu = 6
+    Deployed = 7
+
+
+def scm_raw_message_decode(raw_message, epoch_year):
     """
     scm_message_decode decodes and converts the raw_message to an OrderedDict by calling scm.generated.scm_df_decode.
     scm_message_decode then converts the decoded quantized values into real world values.
@@ -62,12 +72,12 @@ def scm_raw_message_decode(raw_message):
         result[key] = unpacked[key]
 
     # If this is a tracking packet, unpack it.
-    if unpacked[transmission_packet_type] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking:
+    if unpacked[transmission_packet_type] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking_v1_0:
         result[transmission_payload] = OrderedDict()
-        result[transmission_payload][transmission_payload_tracking] = OrderedDict()
+        result[transmission_payload][transmission_payload_tracking_v1_0] = OrderedDict()
 
-        tracking_payload = unpacked[transmission_payload][transmission_payload_tracking]
-        result_tracking_payload = result[transmission_payload][transmission_payload_tracking]
+        tracking_payload = unpacked[transmission_payload][transmission_payload_tracking_v1_0]
+        result_tracking_payload = result[transmission_payload][transmission_payload_tracking_v1_0]
 
         # Convert Flags
         result_tracking_payload[transmission_payload_tracking_flags] = \
@@ -81,7 +91,7 @@ def scm_raw_message_decode(raw_message):
         result_tracking_payload[transmission_payload_tracking_longitude] = \
             unpack_signed_int_32(
                 tracking_payload[transmission_payload_tracking_longitude],
-                32 - SCM_DF_TRACKING_LONGITUDE_SIZE
+                32 - SCM_DF_TRACKING_V1_0_LONGITUDE_SIZE
             )[0]
         focus_longitude = Decimal(result_tracking_payload[transmission_payload_tracking_longitude]) / Decimal(
             SCM_DF_GPS_MULTIPLIER)
@@ -91,7 +101,7 @@ def scm_raw_message_decode(raw_message):
         result_tracking_payload[transmission_payload_tracking_latitude] = \
             unpack_signed_int_32(
                 tracking_payload[transmission_payload_tracking_latitude],
-                32 - SCM_DF_TRACKING_LATITUDE_SIZE
+                32 - SCM_DF_TRACKING_V1_0_LATITUDE_SIZE
             )[0]
         focus_latitude = Decimal(result_tracking_payload[transmission_payload_tracking_latitude]) / Decimal(
             SCM_DF_GPS_MULTIPLIER)
@@ -108,17 +118,17 @@ def scm_raw_message_decode(raw_message):
         # Convert Battery voltage
         result_tracking_payload[transmission_payload_tracking_battery] = \
             (Decimal(tracking_payload[
-                         transmission_payload_tracking_battery]) * calculate_battery_step()) + SCM_DF_BAT_RANGE_LOW
+                         transmission_payload_tracking_battery]) * calculate_v1_0_battery_step()) + SCM_DF_BAT_RANGE_LOW
 
         # Convert Temperature Min
         result_tracking_payload[transmission_payload_tracking_temp_min] = \
             (Decimal(tracking_payload[
-                         transmission_payload_tracking_temp_min]) * calculate_temp_min_step()) + SCM_DF_TEMP_MIN_LOW
+                         transmission_payload_tracking_temp_min]) * calculate_v1_0_temp_min_step()) + SCM_DF_TEMP_MIN_LOW
 
         # Convert Temperature Max
         result_tracking_payload[transmission_payload_tracking_temp_max] = \
             (Decimal(tracking_payload[
-                         transmission_payload_tracking_temp_max]) * calculate_temp_max_step()) + SCM_DF_TEMP_MAX_LOW
+                         transmission_payload_tracking_temp_max]) * calculate_v1_0_temp_max_step()) + SCM_DF_TEMP_MAX_LOW
 
         # Convert Temperature Alert
         result_tracking_payload[transmission_payload_tracking_temp_alert] = \
@@ -134,9 +144,9 @@ def scm_raw_message_decode(raw_message):
 
             # Compute Values
             delta_d_km = point[transmission_payload_tracking_points_delta_km]
-            delta_d_m = Decimal(point[transmission_payload_tracking_points_delta_m]) * calculate_point_delta_m_step()
+            delta_d_m = Decimal(point[transmission_payload_tracking_points_delta_m]) * calculate_v1_0_point_delta_m_step()
             total_delta_m = (delta_d_km * Decimal(1000)) + delta_d_m
-            bearing = Decimal(point[transmission_payload_tracking_points_delta_angle]) * calculate_point_bearing_step()
+            bearing = Decimal(point[transmission_payload_tracking_points_delta_angle]) * calculate_v1_0_point_bearing_step()
             activity = point[transmission_payload_tracking_points_activity]
             temp_alert = point[transmission_payload_tracking_points_temp_alert] == 1
 
@@ -164,6 +174,148 @@ def scm_raw_message_decode(raw_message):
             res[transmission_payload_tracking_points_temp_alert] = temp_alert
             res[transmission_payload_tracking_latitude] = computed_position.latitude  # computed_position['lat2']
             res[transmission_payload_tracking_longitude] = computed_position.longitude  # computed_position['lon2']
+
+    elif unpacked[transmission_packet_type] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking_v2_0:
+        result[transmission_payload] = OrderedDict()
+        result[transmission_payload][transmission_payload_tracking_v2_0] = OrderedDict()
+        result_tracking_v2_0_payload = result[transmission_payload][transmission_payload_tracking_v2_0]
+
+        tracking_v2_0_payload = unpacked[transmission_payload][transmission_payload_tracking_v2_0]
+
+        # Timestamp
+        result_tracking_v2_0_payload[transmission_payload_tracking_days_since_epoch] = \
+            tracking_v2_0_payload[transmission_payload_tracking_days_since_epoch]
+
+        # Convert Timeslot
+        result_tracking_v2_0_payload[transmission_payload_tracking_timeslot] = \
+            tracking_v2_0_payload[transmission_payload_tracking_timeslot] * 2
+
+        # Calculate timestamp
+        epoch = datetime.datetime(epoch_year, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        v2_0_focus_ts = epoch + datetime.timedelta(days=result_tracking_v2_0_payload[transmission_payload_tracking_days_since_epoch], hours=result_tracking_v2_0_payload[transmission_payload_tracking_timeslot])
+        result_tracking_v2_0_payload[transmission_payload_tracking_timestamp] = v2_0_focus_ts
+
+        # Convert Longitude
+        result_tracking_v2_0_payload[transmission_payload_tracking_longitude] = \
+            unpack_signed_int_32(
+                tracking_v2_0_payload[transmission_payload_tracking_longitude],
+                32 - SCM_DF_TRACKING_V2_0_LONGITUDE_SIZE
+            )[0]
+        focus_longitude = Decimal(result_tracking_v2_0_payload[transmission_payload_tracking_longitude]) / Decimal(
+            SCM_DF_GPS_MULTIPLIER)
+        result_tracking_v2_0_payload[transmission_payload_tracking_longitude] = focus_longitude
+
+        # Convert Latitude
+        result_tracking_v2_0_payload[transmission_payload_tracking_latitude] = \
+            unpack_signed_int_32(
+                tracking_v2_0_payload[transmission_payload_tracking_latitude],
+                32 - SCM_DF_TRACKING_V2_0_LATITUDE_SIZE
+            )[0]
+        focus_latitude = Decimal(result_tracking_v2_0_payload[transmission_payload_tracking_latitude]) / Decimal(
+            SCM_DF_GPS_MULTIPLIER)
+        result_tracking_v2_0_payload[transmission_payload_tracking_latitude] = focus_latitude
+
+        # Convert Orientation
+        result_tracking_v2_0_payload[transmission_payload_tracking_orientation] = \
+            tracking_v2_0_payload[transmission_payload_tracking_orientation]
+
+        # Convert Activity level
+        result_tracking_v2_0_payload[transmission_payload_tracking_activity] = \
+            tracking_v2_0_payload[transmission_payload_tracking_activity]
+
+        # Convert Battery voltage
+        result_tracking_v2_0_payload[transmission_payload_tracking_battery] = \
+            (Decimal(tracking_v2_0_payload[
+                         transmission_payload_tracking_battery]) * calculate_v2_0_battery_step()) + SCM_DF_BAT_RANGE_LOW
+
+        # Convert Temperature Min
+        result_tracking_v2_0_payload[transmission_payload_tracking_temp_min] = \
+            (Decimal(tracking_v2_0_payload[
+                         transmission_payload_tracking_temp_min]) * calculate_v2_0_temp_min_step()) + SCM_DF_TEMP_MIN_LOW
+
+        # Convert Temperature Max
+        result_tracking_v2_0_payload[transmission_payload_tracking_temp_max] = \
+            (Decimal(tracking_v2_0_payload[
+                         transmission_payload_tracking_temp_max]) * calculate_v2_0_temp_max_step()) + SCM_DF_TEMP_MAX_LOW
+
+        # Convert Temperature Alert
+        result_tracking_v2_0_payload[transmission_payload_tracking_temp_alert] = \
+            tracking_v2_0_payload[transmission_payload_tracking_temp_alert] == 1
+
+        # Convert the associated points
+        # geod = Geodesic.WGS84
+        result_tracking_v2_0_payload[transmission_payload_tracking_points] = []
+        result_points = result_tracking_v2_0_payload[transmission_payload_tracking_points]
+        for point in tracking_v2_0_payload[transmission_payload_tracking_points]:
+            res = OrderedDict()
+            result_points.append(res)
+
+            res[transmission_payload_tracking_points_day_offset] = point[transmission_payload_tracking_points_day_offset]
+            res[transmission_payload_tracking_points_timeslot] = point[transmission_payload_tracking_points_timeslot] * 2
+            point_ts = v2_0_focus_ts - datetime.timedelta(days=point[transmission_payload_tracking_points_day_offset])
+            point_ts = point_ts.replace(hour=res[transmission_payload_tracking_points_timeslot])
+            res[transmission_payload_tracking_points_timestamp] = point_ts
+
+
+            # Compute Values
+            delta_d_km = point[transmission_payload_tracking_points_delta_km]
+            delta_d_m = Decimal(point[transmission_payload_tracking_points_delta_m]) * calculate_v2_0_point_delta_m_step()
+            total_delta_m = (delta_d_km * Decimal(1000)) + delta_d_m
+            bearing = Decimal(
+                point[transmission_payload_tracking_points_delta_angle]) * calculate_v2_0_point_bearing_step()
+            activity = point[transmission_payload_tracking_points_activity]
+            temp_alert = point[transmission_payload_tracking_points_temp_alert] == 1
+
+            # Geodesy Direct Problem:
+            #  https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid#Geodesics_on_an_ellipsoid_of_revolution
+            #
+            # From https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid#Applications:
+            #   The direct and inverse geodesic problems no longer play the central role in geodesy that they once did.
+            #   Instead of solving adjustment of geodetic networks as a two-dimensional problem in spheroidal
+            #   trigonometry, these problems are now solved by three-dimensional methods
+            #   (Vincenty & Bowring 1978)[https://www.ngs.noaa.gov/PUBS_LIB/ApplicationOfThreeDimensionalGeodesyToAdjustmentsOfHorizontalNetworks_TM_NOS_NGS13.pdf].
+            # computed_position = geod.Direct(float(focus_latitude), float(focus_longitude), bearing, float(total_delta_m))
+
+            # TinyGPS library uses the great-circle distance computation:
+            # https://github.com/mikalhart/TinyGPS/blob/db4ef9c97af767e7345f5ccb277ac3bd1a2eb81f/TinyGPS.cpp#L296-L339
+            focus = Point(float(focus_latitude), float(focus_longitude))
+            computed_position = great_circle(meters=float(total_delta_m)).destination(focus, bearing)
+
+            # Populate results
+            res[transmission_payload_tracking_points_delta_km] = delta_d_km
+            res[transmission_payload_tracking_points_delta_m] = delta_d_m
+            res[transmission_payload_tracking_points_total_delta_m] = total_delta_m
+            res[transmission_payload_tracking_points_delta_angle] = bearing
+            res[transmission_payload_tracking_points_activity] = activity
+            res[transmission_payload_tracking_points_temp_alert] = temp_alert
+            res[transmission_payload_tracking_latitude] = computed_position.latitude  # computed_position['lat2']
+            res[transmission_payload_tracking_longitude] = computed_position.longitude  # computed_position['lon2']
+
+
+    elif unpacked[transmission_packet_type] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Status_v1_0:
+        result[transmission_payload] = OrderedDict()
+        result[transmission_payload][transmission_payload_status_v1_0] = OrderedDict()
+        unpacked_status = unpacked[transmission_payload][transmission_payload_status_v1_0]
+        status = result[transmission_payload][transmission_payload_status_v1_0]
+
+        tz = datetime.timezone(
+            datetime.timedelta(seconds=unpacked_status[transmission_payload_status_timezone_offset_m] * 60))
+
+        status[transmission_payload_status_timestamp] = datetime.datetime.fromtimestamp(unpacked_status[transmission_payload_status_timestamp], tz)
+
+        status[transmission_payload_status_epoch] = datetime.datetime(
+            unpacked_status[transmission_payload_status_epoch], 1, 1, 0, 0, 0, 0, datetime.timezone.utc)
+
+        status[transmission_payload_status_mode] = SCM_DF_Transmission_Status_v1_0_Mode(
+            unpacked_status[transmission_payload_status_mode])
+
+        status[transmission_payload_status_timezone] = tz
+        status[transmission_payload_status_timezone_offset_m] = unpacked_status[transmission_payload_status_timezone_offset_m]
+
+
+
+
+
 
     # Copy over the BCH32
     for key in [transmission_bch32, transmission_crc16_verified, transmission_bch32_verified]:
@@ -264,48 +416,91 @@ class InvalidMessageSize(Exception):
 
 
 @lru_cache(maxsize=2)
-def calculate_battery_step():
+def calculate_v1_0_battery_step():
     """
     calculate_battery_step calculates the quantized step value for each count of the battery field.
     :return: The step size
     """
-    return (SCM_DF_BAT_RANGE_HIGH - SCM_DF_BAT_RANGE_LOW) / (2 ** SCM_DF_TRACKING_BATTERY_SIZE)
+    return (SCM_DF_BAT_RANGE_HIGH - SCM_DF_BAT_RANGE_LOW) / (2 ** SCM_DF_TRACKING_V1_0_BATTERY_SIZE)
 
 
 @lru_cache(maxsize=2)
-def calculate_temp_max_step():
+def calculate_v1_0_temp_max_step():
     """
     calculate_temp_max_step calculates the quantized step value for each count of the temp_min field.
     :return:
     """
-    return (SCM_DF_TEMP_MAX_HIGH - SCM_DF_TEMP_MAX_LOW) / (2 ** SCM_DF_TRACKING_TEMP_MAX_SIZE)
+    return (SCM_DF_TEMP_MAX_HIGH - SCM_DF_TEMP_MAX_LOW) / (2 ** SCM_DF_TRACKING_V1_0_TEMP_MAX_SIZE)
 
 
 @lru_cache(maxsize=2)
-def calculate_temp_min_step():
+def calculate_v1_0_temp_min_step():
     """
     calculate_temp_min_step calculates the quantized step value for each count of the temp_min field.
     :return:
     """
-    return (SCM_DF_TEMP_MIN_HIGH - SCM_DF_TEMP_MIN_LOW) / (2 ** SCM_DF_TRACKING_TEMP_MIN_SIZE)
+    return (SCM_DF_TEMP_MIN_HIGH - SCM_DF_TEMP_MIN_LOW) / (2 ** SCM_DF_TRACKING_V1_0_TEMP_MIN_SIZE)
 
 
 @lru_cache(maxsize=2)
-def calculate_point_delta_m_step():
+def calculate_v1_0_point_delta_m_step():
     """
     calculate_point_delta_m_step calculates the quantized step value for each count of the point_delta_m field.
     :return:
     """
-    return Decimal('1000') / (2 ** SCM_DF_POINT_DELTA_M_SIZE)
+    return Decimal('1000') / (2 ** SCM_DF_POINT_V1_0_DELTA_M_SIZE)
 
 
 @lru_cache(maxsize=2)
-def calculate_point_bearing_step():
+def calculate_v1_0_point_bearing_step():
     """
     calculate_point_bearing_step calculates the quantized step value for each count of the point_delta_angle field.
     :return:
     """
-    return Decimal('360') / (2 ** SCM_DF_POINT_DELTA_ANGLE_SIZE)
+    return Decimal('360') / (2 ** SCM_DF_POINT_V1_0_DELTA_ANGLE_SIZE)
+
+
+@lru_cache(maxsize=2)
+def calculate_v2_0_battery_step():
+    """
+    calculate_battery_step calculates the quantized step value for each count of the battery field.
+    :return: The step size
+    """
+    return (SCM_DF_BAT_RANGE_HIGH - SCM_DF_BAT_RANGE_LOW) / (2 ** SCM_DF_TRACKING_V2_0_BATTERY_SIZE)
+
+
+@lru_cache(maxsize=2)
+def calculate_v2_0_temp_max_step():
+    """
+    calculate_temp_max_step calculates the quantized step value for each count of the temp_min field.
+    :return:
+    """
+    return (SCM_DF_TEMP_MAX_HIGH - SCM_DF_TEMP_MAX_LOW) / (2 ** SCM_DF_TRACKING_V2_0_TEMP_MAX_SIZE)
+
+
+@lru_cache(maxsize=2)
+def calculate_v2_0_temp_min_step():
+    """
+    calculate_temp_min_step calculates the quantized step value for each count of the temp_min field.
+    :return:
+    """
+    return (SCM_DF_TEMP_MIN_HIGH - SCM_DF_TEMP_MIN_LOW) / (2 ** SCM_DF_TRACKING_V2_0_TEMP_MIN_SIZE)
+
+@lru_cache(maxsize=2)
+def calculate_v2_0_point_delta_m_step():
+    """
+    calculate_point_delta_m_step calculates the quantized step value for each count of the point_delta_m field.
+    :return:
+    """
+    return Decimal('1000') / (2 ** SCM_DF_POINT_V1_0_DELTA_M_SIZE)
+
+@lru_cache(maxsize=2)
+def calculate_v2_0_point_bearing_step():
+    """
+    calculate_point_bearing_step calculates the quantized step value for each count of the point_delta_angle field.
+    :return:
+    """
+    return Decimal('360') / (2 ** SCM_DF_POINT_V2_0_DELTA_ANGLE_SIZE)
 
 
 def unpack_signed_int_32(value, shift):

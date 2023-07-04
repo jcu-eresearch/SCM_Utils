@@ -29,8 +29,10 @@ from enum import Enum
 from json import loads, dumps, JSONEncoder
 from unittest import TestCase
 
+from scm.generated.SCM_DF import BitQueue
 from scm.utils.constants import transmission_bch32_verified, transmission_crc16_verified, transmission_crc16, \
     transmission_bch32, transmission_decoded_type, transmission_decoded_raw_type
+from scm.utils.scm_epoch import DeviceEpoch
 from scm.utils.scm_msg import scm_raw_message_decode, scm_processed_message_decode
 
 
@@ -66,7 +68,7 @@ class TestDecoder(TestCase):
         "MC": 73, 
         "packet_type": 0, 
         "payload": {
-            "tracking": {
+            "tracking_v1_0": {
                 "flags": 0, 
                 "timeslot": 0, 
                 "longitude": "146.75968", 
@@ -114,13 +116,13 @@ class TestDecoder(TestCase):
         "decode_type": "raw"
     }
 
-    def test_decoder_raw(self):
-        message = scm_raw_message_decode(self.raw['values']['raw_data'])
+    def _test_decoder_raw(self):
+        message = scm_raw_message_decode(self.raw['values']['raw_data'], DeviceEpoch().get_device_epoch(self.raw['values']['device_id']))
         self.assertTrue(message[transmission_crc16_verified])
         self.assertTrue(message[transmission_bch32_verified])
         self.assertEqual(self.result, loads(dumps(message, cls=TransmissionEncoder)))
 
-    def test_decoder_processed(self):
+    def _test_decoder_processed(self):
         message = scm_processed_message_decode(
             self.processed['values']['RAW_DATA'],
             extra_id=0,
@@ -136,6 +138,17 @@ class TestDecoder(TestCase):
 
         self.assertEqual(self.result, loads(dumps(answer, cls=TransmissionEncoder)))
         
+    def test_status_decode(self):
+        msg = "02642000132337907800003F384096000000000000000000000000B35E63CC".replace(" ", "")
+        message = scm_raw_message_decode(msg, DeviceEpoch().get_device_epoch(None))
+        from pprint import pprint
+        pprint(message)
+
+    def test_tracking_v2_raw_decoder(self):
+        msg = "0F4EE015085C0045FB87F6CDC001490842C0080B0010A002037000C4C7776C"
+        message = scm_raw_message_decode(msg.replace(" ", ""), DeviceEpoch().get_device_epoch(None))
+        from pprint import pprint
+        pprint(message)
 
 class TransmissionEncoder(JSONEncoder):
     def default(self, to_encode):

@@ -38,27 +38,52 @@ SCM_DF_TRANSMISSION_CRC16_SIZE = 16
 SCM_DF_TRANSMISSION_SF_SIZE = 3
 SCM_DF_TRANSMISSION_MC_SIZE = 9
 SCM_DF_TRANSMISSION_PACKET_TYPE_SIZE = 5
-SCM_DF_TRACKING_FLAGS_SIZE = 4
-SCM_DF_TRACKING_TIMESLOT_SIZE = 4
-SCM_DF_TRACKING_LONGITUDE_SIZE = 22
-SCM_DF_TRACKING_LATITUDE_SIZE = 21
-SCM_DF_TRACKING_ORIENTATION_SIZE = 3
-SCM_DF_TRACKING_ACTIVITY_SIZE = 8
-SCM_DF_TRACKING_BATTERY_SIZE = 5
-SCM_DF_TRACKING_TEMP_MIN_SIZE = 6
-SCM_DF_TRACKING_TEMP_MAX_SIZE = 6
-SCM_DF_TRACKING_TEMP_ALERT_SIZE = 1
-SCM_DF_POINT_DELTA_KM_SIZE = 6
-SCM_DF_POINT_DELTA_M_SIZE = 7
-SCM_DF_POINT_DELTA_ANGLE_SIZE = 11
-SCM_DF_POINT_ACTIVITY_SIZE = 8
-SCM_DF_POINT_TEMP_ALERT_SIZE = 1
+SCM_DF_TRACKING_V1_0_FLAGS_SIZE = 4
+SCM_DF_TRACKING_V1_0_TIMESLOT_SIZE = 4
+SCM_DF_TRACKING_V1_0_LONGITUDE_SIZE = 22
+SCM_DF_TRACKING_V1_0_LATITUDE_SIZE = 21
+SCM_DF_TRACKING_V1_0_ORIENTATION_SIZE = 3
+SCM_DF_TRACKING_V1_0_ACTIVITY_SIZE = 8
+SCM_DF_TRACKING_V1_0_BATTERY_SIZE = 5
+SCM_DF_TRACKING_V1_0_TEMP_MIN_SIZE = 6
+SCM_DF_TRACKING_V1_0_TEMP_MAX_SIZE = 6
+SCM_DF_TRACKING_V1_0_TEMP_ALERT_SIZE = 1
+SCM_DF_TRACKING_V1_0_POINTS_ARRAY_SIZE = 3
+SCM_DF_POINT_V1_0_DELTA_KM_SIZE = 6
+SCM_DF_POINT_V1_0_DELTA_M_SIZE = 7
+SCM_DF_POINT_V1_0_DELTA_ANGLE_SIZE = 11
+SCM_DF_POINT_V1_0_ACTIVITY_SIZE = 8
+SCM_DF_POINT_V1_0_TEMP_ALERT_SIZE = 1
+SCM_DF_TRACKING_V2_0_DAYS_SINCE_EPOCH_SIZE = 12
+SCM_DF_TRACKING_V2_0_TIMESLOT_SIZE = 4
+SCM_DF_TRACKING_V2_0_LONGITUDE_SIZE = 24
+SCM_DF_TRACKING_V2_0_LATITUDE_SIZE = 23
+SCM_DF_TRACKING_V2_0_ORIENTATION_SIZE = 3
+SCM_DF_TRACKING_V2_0_ACTIVITY_SIZE = 8
+SCM_DF_TRACKING_V2_0_BATTERY_SIZE = 5
+SCM_DF_TRACKING_V2_0_TEMP_MIN_SIZE = 6
+SCM_DF_TRACKING_V2_0_TEMP_MAX_SIZE = 6
+SCM_DF_TRACKING_V2_0_TEMP_ALERT_SIZE = 1
+SCM_DF_TRACKING_V2_0_POINTS_ARRAY_SIZE = 2
+SCM_DF_POINT_V2_0_VALID_SIZE = 1
+SCM_DF_POINT_V2_0_DAY_OFFSET_SIZE = 4
+SCM_DF_POINT_V2_0_TIMESLOT_SIZE = 4
+SCM_DF_POINT_V2_0_DELTA_KM_SIZE = 6
+SCM_DF_POINT_V2_0_DELTA_M_SIZE = 7
+SCM_DF_POINT_V2_0_DELTA_ANGLE_SIZE = 11
+SCM_DF_POINT_V2_0_ACTIVITY_SIZE = 8
+SCM_DF_POINT_V2_0_TEMP_ALERT_SIZE = 1
+SCM_DF_STATUS_V1_0_TIMESTAMP_SIZE = 32
+SCM_DF_STATUS_V1_0_EPOCH_SIZE = 32
+SCM_DF_STATUS_V1_0_MODE_SIZE = 5
+SCM_DF_STATUS_V1_0_TIMEZONE_OFFSET_M_SIZE = 16
 SCM_DF_TRANSMISSION_BCH32_SIZE = 32
 
 # SCM_DF Constants
 SCM_DF_BUF_SIZE = 31
 SCM_DF_GPS_MULTIPLIER = 1000000
-SCM_DF_TRANSMISSION_RECORDS = 4
+SCM_DF_TRANSMISSION_TRACKING_V1_0_RECORDS = (SCM_DF_TRACKING_V1_0_POINTS_ARRAY_SIZE + 1)
+SCM_DF_TRANSMISSION_TRACKING_V2_0_RECORDS = (SCM_DF_TRACKING_V2_0_POINTS_ARRAY_SIZE + 1)
 SCM_DF_TEMP_MAX_HIGH = Decimal('52.0')
 SCM_DF_TEMP_MAX_LOW = Decimal('20.0')
 SCM_DF_TEMP_MIN_HIGH = Decimal('32.0')
@@ -122,7 +147,9 @@ class BitQueue:
 
 
 class SCM_DF_Transmission_Payload(Enum):
-    SCM_DF_Transmission_Payload_Tracking = 0
+    SCM_DF_Transmission_Payload_Tracking_v1_0 = 0
+    SCM_DF_Transmission_Payload_Tracking_v2_0 = 1
+    SCM_DF_Transmission_Payload_Status_v1_0 = 2
 
 
 def scm_df_decode(hex_string):
@@ -132,36 +159,73 @@ def scm_df_decode(hex_string):
     data['crc16'] = int(q.pop(16), 2)
     data['SF'] = int(q.pop(3), 2)
     data['MC'] = int(q.pop(9), 2)
-    data['packet_type'] = SCM_DF_Transmission_Payload(int(q.pop(5)))
-    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking:
-        data['payload'] = OrderedDict()
-        data['payload']['tracking'] = OrderedDict()
-        data['payload']['tracking']['flags'] = int(q.pop(4), 2)
-        data['payload']['tracking']['timeslot'] = int(q.pop(4), 2)
-        data['payload']['tracking']['longitude'] = int(q.pop(22), 2)
-        data['payload']['tracking']['latitude'] = int(q.pop(21), 2)
-        data['payload']['tracking']['orientation'] = int(q.pop(3), 2)
-        data['payload']['tracking']['activity'] = int(q.pop(8), 2)
-        data['payload']['tracking']['battery'] = int(q.pop(5), 2)
-        data['payload']['tracking']['temp_min'] = int(q.pop(6), 2)
-        data['payload']['tracking']['temp_max'] = int(q.pop(6), 2)
-        data['payload']['tracking']['temp_alert'] = int(q.pop(1), 2)
-        data['payload']['tracking']['points'] = [OrderedDict(), OrderedDict(), OrderedDict()]
-        data['payload']['tracking']['points'][0]['delta_km'] = int(q.pop(6), 2)
-        data['payload']['tracking']['points'][0]['delta_m'] = int(q.pop(7), 2)
-        data['payload']['tracking']['points'][0]['delta_angle'] = int(q.pop(11), 2)
-        data['payload']['tracking']['points'][0]['activity'] = int(q.pop(8), 2)
-        data['payload']['tracking']['points'][0]['temp_alert'] = int(q.pop(1), 2)
-        data['payload']['tracking']['points'][1]['delta_km'] = int(q.pop(6), 2)
-        data['payload']['tracking']['points'][1]['delta_m'] = int(q.pop(7), 2)
-        data['payload']['tracking']['points'][1]['delta_angle'] = int(q.pop(11), 2)
-        data['payload']['tracking']['points'][1]['activity'] = int(q.pop(8), 2)
-        data['payload']['tracking']['points'][1]['temp_alert'] = int(q.pop(1), 2)
-        data['payload']['tracking']['points'][2]['delta_km'] = int(q.pop(6), 2)
-        data['payload']['tracking']['points'][2]['delta_m'] = int(q.pop(7), 2)
-        data['payload']['tracking']['points'][2]['delta_angle'] = int(q.pop(11), 2)
-        data['payload']['tracking']['points'][2]['activity'] = int(q.pop(8), 2)
-        data['payload']['tracking']['points'][2]['temp_alert'] = int(q.pop(1), 2)
+    data['packet_type'] = SCM_DF_Transmission_Payload(int(q.pop(5), 2))
+    data['payload'] = OrderedDict()
+    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking_v1_0:
+        data['payload']['tracking_v1_0'] = OrderedDict()
+        data['payload']['tracking_v1_0']['flags'] = int(q.pop(4), 2)
+        data['payload']['tracking_v1_0']['timeslot'] = int(q.pop(4), 2)
+        data['payload']['tracking_v1_0']['longitude'] = int(q.pop(22), 2)
+        data['payload']['tracking_v1_0']['latitude'] = int(q.pop(21), 2)
+        data['payload']['tracking_v1_0']['orientation'] = int(q.pop(3), 2)
+        data['payload']['tracking_v1_0']['activity'] = int(q.pop(8), 2)
+        data['payload']['tracking_v1_0']['battery'] = int(q.pop(5), 2)
+        data['payload']['tracking_v1_0']['temp_min'] = int(q.pop(6), 2)
+        data['payload']['tracking_v1_0']['temp_max'] = int(q.pop(6), 2)
+        data['payload']['tracking_v1_0']['temp_alert'] = int(q.pop(1), 2)
+        data['payload']['tracking_v1_0']['points'] = [OrderedDict(), OrderedDict(), OrderedDict()]
+        data['payload']['tracking_v1_0']['points'][0]['delta_km'] = int(q.pop(6), 2)
+        data['payload']['tracking_v1_0']['points'][0]['delta_m'] = int(q.pop(7), 2)
+        data['payload']['tracking_v1_0']['points'][0]['delta_angle'] = int(q.pop(11), 2)
+        data['payload']['tracking_v1_0']['points'][0]['activity'] = int(q.pop(8), 2)
+        data['payload']['tracking_v1_0']['points'][0]['temp_alert'] = int(q.pop(1), 2)
+        data['payload']['tracking_v1_0']['points'][1]['delta_km'] = int(q.pop(6), 2)
+        data['payload']['tracking_v1_0']['points'][1]['delta_m'] = int(q.pop(7), 2)
+        data['payload']['tracking_v1_0']['points'][1]['delta_angle'] = int(q.pop(11), 2)
+        data['payload']['tracking_v1_0']['points'][1]['activity'] = int(q.pop(8), 2)
+        data['payload']['tracking_v1_0']['points'][1]['temp_alert'] = int(q.pop(1), 2)
+        data['payload']['tracking_v1_0']['points'][2]['delta_km'] = int(q.pop(6), 2)
+        data['payload']['tracking_v1_0']['points'][2]['delta_m'] = int(q.pop(7), 2)
+        data['payload']['tracking_v1_0']['points'][2]['delta_angle'] = int(q.pop(11), 2)
+        data['payload']['tracking_v1_0']['points'][2]['activity'] = int(q.pop(8), 2)
+        data['payload']['tracking_v1_0']['points'][2]['temp_alert'] = int(q.pop(1), 2)
+    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking_v2_0:
+        data['payload']['tracking_v2_0'] = OrderedDict()
+        data['payload']['tracking_v2_0']['days_since_epoch'] = int(q.pop(12), 2)
+        data['payload']['tracking_v2_0']['timeslot'] = int(q.pop(4), 2)
+        data['payload']['tracking_v2_0']['longitude'] = int(q.pop(24), 2)
+        data['payload']['tracking_v2_0']['latitude'] = int(q.pop(23), 2)
+        data['payload']['tracking_v2_0']['orientation'] = int(q.pop(3), 2)
+        data['payload']['tracking_v2_0']['activity'] = int(q.pop(8), 2)
+        data['payload']['tracking_v2_0']['battery'] = int(q.pop(5), 2)
+        data['payload']['tracking_v2_0']['temp_min'] = int(q.pop(6), 2)
+        data['payload']['tracking_v2_0']['temp_max'] = int(q.pop(6), 2)
+        data['payload']['tracking_v2_0']['temp_alert'] = int(q.pop(1), 2)
+        data['payload']['tracking_v2_0']['points'] = [OrderedDict(), OrderedDict()]
+        data['payload']['tracking_v2_0']['points'][0]['valid'] = int(q.pop(1), 2)
+        data['payload']['tracking_v2_0']['points'][0]['day_offset'] = int(q.pop(4), 2)
+        data['payload']['tracking_v2_0']['points'][0]['timeslot'] = int(q.pop(4), 2)
+        data['payload']['tracking_v2_0']['points'][0]['delta_km'] = int(q.pop(6), 2)
+        data['payload']['tracking_v2_0']['points'][0]['delta_m'] = int(q.pop(7), 2)
+        data['payload']['tracking_v2_0']['points'][0]['delta_angle'] = int(q.pop(11), 2)
+        data['payload']['tracking_v2_0']['points'][0]['activity'] = int(q.pop(8), 2)
+        data['payload']['tracking_v2_0']['points'][0]['temp_alert'] = int(q.pop(1), 2)
+        data['payload']['tracking_v2_0']['points'][1]['valid'] = int(q.pop(1), 2)
+        data['payload']['tracking_v2_0']['points'][1]['day_offset'] = int(q.pop(4), 2)
+        data['payload']['tracking_v2_0']['points'][1]['timeslot'] = int(q.pop(4), 2)
+        data['payload']['tracking_v2_0']['points'][1]['delta_km'] = int(q.pop(6), 2)
+        data['payload']['tracking_v2_0']['points'][1]['delta_m'] = int(q.pop(7), 2)
+        data['payload']['tracking_v2_0']['points'][1]['delta_angle'] = int(q.pop(11), 2)
+        data['payload']['tracking_v2_0']['points'][1]['activity'] = int(q.pop(8), 2)
+        data['payload']['tracking_v2_0']['points'][1]['temp_alert'] = int(q.pop(1), 2)
+        data['payload']['tracking_v2_0']['padding_0'] = int(q.pop(3), 2)
+    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Status_v1_0:
+        data['payload']['status_v1_0'] = OrderedDict()
+        data['payload']['status_v1_0']['timestamp'] = int(q.pop(32), 2)
+        data['payload']['status_v1_0']['epoch'] = int(q.pop(32), 2)
+        data['payload']['status_v1_0']['mode'] = int(q.pop(5), 2)
+        data['payload']['status_v1_0']['timezone_offset_m'] = int(q.pop(16), 2)
+        data['payload']['status_v1_0']['padding_0'] = int(q.pop(94), 2)
     data['bch32'] = int(q.pop(32), 2)
     if q.size() != 0: raise DecodeError('Not all data decoded. {} bits remaining'.format(q.size()))
     return data
@@ -174,32 +238,66 @@ def scm_df_encode(data):
     q.push(data['SF'], 3)
     q.push(data['MC'], 9)
     q.push(data['packet_type'], 5)
-    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking:
-        q.push(data['payload']['tracking']['flags'], 4)
-        q.push(data['payload']['tracking']['timeslot'], 4)
-        q.push(data['payload']['tracking']['longitude'], 22)
-        q.push(data['payload']['tracking']['latitude'], 21)
-        q.push(data['payload']['tracking']['orientation'], 3)
-        q.push(data['payload']['tracking']['activity'], 8)
-        q.push(data['payload']['tracking']['battery'], 5)
-        q.push(data['payload']['tracking']['temp_min'], 6)
-        q.push(data['payload']['tracking']['temp_max'], 6)
-        q.push(data['payload']['tracking']['temp_alert'], 1)
-        q.push(data['payload']['tracking']['points'][0]['delta_km'], 6)
-        q.push(data['payload']['tracking']['points'][0]['delta_m'], 7)
-        q.push(data['payload']['tracking']['points'][0]['delta_angle'], 11)
-        q.push(data['payload']['tracking']['points'][0]['activity'], 8)
-        q.push(data['payload']['tracking']['points'][0]['temp_alert'], 1)
-        q.push(data['payload']['tracking']['points'][1]['delta_km'], 6)
-        q.push(data['payload']['tracking']['points'][1]['delta_m'], 7)
-        q.push(data['payload']['tracking']['points'][1]['delta_angle'], 11)
-        q.push(data['payload']['tracking']['points'][1]['activity'], 8)
-        q.push(data['payload']['tracking']['points'][1]['temp_alert'], 1)
-        q.push(data['payload']['tracking']['points'][2]['delta_km'], 6)
-        q.push(data['payload']['tracking']['points'][2]['delta_m'], 7)
-        q.push(data['payload']['tracking']['points'][2]['delta_angle'], 11)
-        q.push(data['payload']['tracking']['points'][2]['activity'], 8)
-        q.push(data['payload']['tracking']['points'][2]['temp_alert'], 1)
+    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking_v1_0:
+        q.push(data['payload']['tracking_v1_0']['flags'], 4)
+        q.push(data['payload']['tracking_v1_0']['timeslot'], 4)
+        q.push(data['payload']['tracking_v1_0']['longitude'], 22)
+        q.push(data['payload']['tracking_v1_0']['latitude'], 21)
+        q.push(data['payload']['tracking_v1_0']['orientation'], 3)
+        q.push(data['payload']['tracking_v1_0']['activity'], 8)
+        q.push(data['payload']['tracking_v1_0']['battery'], 5)
+        q.push(data['payload']['tracking_v1_0']['temp_min'], 6)
+        q.push(data['payload']['tracking_v1_0']['temp_max'], 6)
+        q.push(data['payload']['tracking_v1_0']['temp_alert'], 1)
+        q.push(data['payload']['tracking_v1_0']['points'][0]['delta_km'], 6)
+        q.push(data['payload']['tracking_v1_0']['points'][0]['delta_m'], 7)
+        q.push(data['payload']['tracking_v1_0']['points'][0]['delta_angle'], 11)
+        q.push(data['payload']['tracking_v1_0']['points'][0]['activity'], 8)
+        q.push(data['payload']['tracking_v1_0']['points'][0]['temp_alert'], 1)
+        q.push(data['payload']['tracking_v1_0']['points'][1]['delta_km'], 6)
+        q.push(data['payload']['tracking_v1_0']['points'][1]['delta_m'], 7)
+        q.push(data['payload']['tracking_v1_0']['points'][1]['delta_angle'], 11)
+        q.push(data['payload']['tracking_v1_0']['points'][1]['activity'], 8)
+        q.push(data['payload']['tracking_v1_0']['points'][1]['temp_alert'], 1)
+        q.push(data['payload']['tracking_v1_0']['points'][2]['delta_km'], 6)
+        q.push(data['payload']['tracking_v1_0']['points'][2]['delta_m'], 7)
+        q.push(data['payload']['tracking_v1_0']['points'][2]['delta_angle'], 11)
+        q.push(data['payload']['tracking_v1_0']['points'][2]['activity'], 8)
+        q.push(data['payload']['tracking_v1_0']['points'][2]['temp_alert'], 1)
+    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Tracking_v2_0:
+        q.push(data['payload']['tracking_v2_0']['days_since_epoch'], 12)
+        q.push(data['payload']['tracking_v2_0']['timeslot'], 4)
+        q.push(data['payload']['tracking_v2_0']['longitude'], 24)
+        q.push(data['payload']['tracking_v2_0']['latitude'], 23)
+        q.push(data['payload']['tracking_v2_0']['orientation'], 3)
+        q.push(data['payload']['tracking_v2_0']['activity'], 8)
+        q.push(data['payload']['tracking_v2_0']['battery'], 5)
+        q.push(data['payload']['tracking_v2_0']['temp_min'], 6)
+        q.push(data['payload']['tracking_v2_0']['temp_max'], 6)
+        q.push(data['payload']['tracking_v2_0']['temp_alert'], 1)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['valid'], 1)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['day_offset'], 4)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['timeslot'], 4)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['delta_km'], 6)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['delta_m'], 7)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['delta_angle'], 11)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['activity'], 8)
+        q.push(data['payload']['tracking_v2_0']['points'][0]['temp_alert'], 1)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['valid'], 1)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['day_offset'], 4)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['timeslot'], 4)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['delta_km'], 6)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['delta_m'], 7)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['delta_angle'], 11)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['activity'], 8)
+        q.push(data['payload']['tracking_v2_0']['points'][1]['temp_alert'], 1)
+        q.push(0, 3)
+    if data['packet_type'] == SCM_DF_Transmission_Payload.SCM_DF_Transmission_Payload_Status_v1_0:
+        q.push(data['payload']['status_v1_0']['timestamp'], 32)
+        q.push(data['payload']['status_v1_0']['epoch'], 32)
+        q.push(data['payload']['status_v1_0']['mode'], 5)
+        q.push(data['payload']['status_v1_0']['timezone_offset_m'], 16)
+        q.push(0, 94)
     q.push(data['bch32'], 32)
     result = q.get_bytes()
     if len(result) != SCM_DF_BUF_SIZE:
