@@ -519,4 +519,4 @@ def unpack_signed_int_32(value, shift):
 
 if __name__ == "__main__":
     from pprint import pprint
-    pprint(scm_raw_message_decode("0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9"))
+    pprint(scm_raw_message_decode("0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9", 2023))
