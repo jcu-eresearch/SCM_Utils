@@ -524,28 +524,28 @@ if __name__ == "__main__":
     pprint(scm_raw_message_decode("0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9", 2023))
 
     ## Validate processed message decoding
-    message = {
-    "ts": 1682983243409,
-    "values":
-        {
-            "msg_date": "2023-05-01T23:20:43.409Z",
-            "device_id": 184999,
-            "msg_id": "1102739179156185088",
-            "RAW_DATA": "000045FB1FDB210000000007840000041E2000032F2400",
-            "SERVICE_FLAG": 0,
-            "BCH_STATUS": 1,
-            "MESSAGE_COUNTER": 60,
-            "CRC_OK": True,
-            "checked": "Y"
-        }
-    }
+    # message = {
+    # "ts": 1682983243409,
+    # "values":
+    #     {
+    #         "msg_date": "2023-05-01T23:20:43.409Z",
+    #         "device_id": 184999,
+    #         "msg_id": "1102739179156185088",
+    #         "RAW_DATA": "000045FB1FDB210000000007840000041E2000032F2400",
+    #         "SERVICE_FLAG": 0,
+    #         "BCH_STATUS": 1,
+    #         "MESSAGE_COUNTER": 60,
+    #         "CRC_OK": True,
+    #         "checked": "Y"
+    #     }
+    # }
 
-    BCH_STATUS = 0
-    result = scm_processed_message_decode(message['values']['RAW_DATA'],
-                                      extra_id=0,
-                                      service_flag=0,
-                                      message_counter=message['values']['MESSAGE_COUNTER'],
-                                      crc16_ok=message['values']['CRC_OK'],
-                                      bch32_ok=BCH_STATUS >= 0)
+    # BCH_STATUS = 0
+    # result = scm_processed_message_decode(message['values']['RAW_DATA'],
+    #                                   extra_id=0,
+    #                                   service_flag=0,
+    #                                   message_counter=message['values']['MESSAGE_COUNTER'],
+    #                                   crc16_ok=message['values']['CRC_OK'],
+    #                                   bch32_ok=BCH_STATUS >= 0)
     
-    pprint(result)
+    # pprint(result)
