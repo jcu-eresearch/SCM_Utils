@@ -326,7 +326,7 @@ def scm_raw_message_decode(raw_message, epoch_year):
     return result
 
 
-def scm_processed_message_decode(message_hex, extra_id=0, service_flag=0, message_counter=0, crc16_ok=True, bch32_ok=True):
+def scm_processed_message_decode(message_hex, extra_id=0, service_flag=0, message_counter=0, crc16_ok=True, bch32_ok=True, epoch_year=2023):
     """
     scm_processed_message_decode converts a processed message to the length required by scm_message_decode and then
     calls pad_processed_message on the result. It then populated the SF (service_flag) and MC (message_counter) from the
@@ -340,7 +340,7 @@ def scm_processed_message_decode(message_hex, extra_id=0, service_flag=0, messag
     :return: An OrderedDict containing the decoded and de-quantized data.
     """
 
-    result = scm_raw_message_decode(pad_processed_message(message_hex))
+    result = scm_raw_message_decode(pad_processed_message(message_hex), epoch_year)
     result[transmission_id] = extra_id
     result[transmission_SF] = service_flag
     result[transmission_MC] = message_counter
@@ -519,4 +519,33 @@ def unpack_signed_int_32(value, shift):
 
 if __name__ == "__main__":
     from pprint import pprint
+
+    ## Validate raw message payload decoding
     pprint(scm_raw_message_decode("0EBAA003003845FA9FDB24001ACCC0123CF80006BD700002CDEA00F3BFF5B9", 2023))
+
+    ## Validate processed message decoding
+    message = {
+    "ts": 1682983243409,
+    "values":
+        {
+            "msg_date": "2023-05-01T23:20:43.409Z",
+            "device_id": 184999,
+            "msg_id": "1102739179156185088",
+            "RAW_DATA": "000045FB1FDB210000000007840000041E2000032F2400",
+            "SERVICE_FLAG": 0,
+            "BCH_STATUS": 1,
+            "MESSAGE_COUNTER": 60,
+            "CRC_OK": True,
+            "checked": "Y"
+        }
+    }
+
+    BCH_STATUS = 0
+    result = scm_processed_message_decode(message['values']['RAW_DATA'],
+                                      extra_id=0,
+                                      service_flag=0,
+                                      message_counter=message['values']['MESSAGE_COUNTER'],
+                                      crc16_ok=message['values']['CRC_OK'],
+                                      bch32_ok=BCH_STATUS >= 0)
+    
+    pprint(result)
