@@ -1,0 +1,4 @@
+crc==4.3.0
+geopy==2.3.0
+setuptools==60.2.0
+tzlocal==4.3
