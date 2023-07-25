@@ -326,7 +326,7 @@ def scm_raw_message_decode(raw_message, epoch_year):
     return result
 
 
-def scm_processed_message_decode(message_hex, extra_id=0, service_flag=0, message_counter=0, crc16_ok=True, bch32_ok=True):
+def scm_processed_message_decode(message_hex, epoch_year, extra_id=0, service_flag=0, message_counter=0, crc16_ok=True, bch32_ok=True):
     """
     scm_processed_message_decode converts a processed message to the length required by scm_message_decode and then
     calls pad_processed_message on the result. It then populated the SF (service_flag) and MC (message_counter) from the
@@ -340,7 +340,7 @@ def scm_processed_message_decode(message_hex, extra_id=0, service_flag=0, messag
     :return: An OrderedDict containing the decoded and de-quantized data.
     """
 
-    result = scm_raw_message_decode(pad_processed_message(message_hex))
+    result = scm_raw_message_decode(pad_processed_message(message_hex), epoch_year)
     result[transmission_id] = extra_id
     result[transmission_SF] = service_flag
     result[transmission_MC] = message_counter
