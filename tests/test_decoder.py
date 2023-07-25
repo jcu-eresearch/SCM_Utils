@@ -24,14 +24,13 @@
 # SOFTWARE.
 
 from copy import deepcopy
-from decimal import Decimal
-from enum import Enum
-from json import loads, dumps, JSONEncoder
+from json import loads, dumps
 from unittest import TestCase
 
 from scm.generated.SCM_DF import BitQueue
 from scm.utils.constants import transmission_bch32_verified, transmission_crc16_verified, transmission_crc16, \
     transmission_bch32, transmission_decoded_type, transmission_decoded_raw_type
+from scm.utils.helpers import TransmissionEncoder
 from scm.utils.scm_epoch import DeviceEpoch
 from scm.utils.scm_msg import scm_raw_message_decode, scm_processed_message_decode
 
@@ -150,10 +149,3 @@ class TestDecoder(TestCase):
         from pprint import pprint
         pprint(message)
 
-class TransmissionEncoder(JSONEncoder):
-    def default(self, to_encode):
-        if isinstance(to_encode, Enum):
-            return to_encode.value
-        elif isinstance(to_encode, Decimal):
-            return str(to_encode)
-        return JSONEncoder.default(self, to_encode)
