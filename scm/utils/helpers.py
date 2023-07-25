@@ -21,6 +21,8 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+
+import datetime
 from decimal import Decimal
 from enum import Enum
 from json import JSONEncoder
@@ -32,4 +34,6 @@ class TransmissionEncoder(JSONEncoder):
             return to_encode.value
         elif isinstance(to_encode, Decimal):
             return str(to_encode)
+        elif type(to_encode) == datetime.datetime:
+            return to_encode.strftime("%Y-%m-%dT%H:%M:%S%z")
         return JSONEncoder.default(self, to_encode)
