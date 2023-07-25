@@ -52,6 +52,29 @@ class SCM_DF_Transmission_Status_v1_0_Mode(Enum):
     Deployed = 7
 
 
+class BCH32InvalidInputException(Exception): pass
+
+
+def scm_is_bch32_ok(checked=None, bch_status=None):
+    """
+    scm_is_bch32_ok determines if the BCH32 checksum has matched properly
+    :param checked:
+    :param bch_status:
+    :return:
+    """
+    if checked is not None:
+        if checked.upper() != "Y":
+            return False
+    # The BCH_status is simply the number of bits corrected by the BCH, and the value -2 means that there were too many
+    # errors to be corrected (up to 4 bit errors corrected for the BCH32).
+    if bch_status is not None:
+        if bch_status == -2:
+            return False
+    if checked is None and bch_status is None:
+        raise BCH32InvalidInputException("Both check and bch_status are None")
+    return True
+
+
 def scm_raw_message_decode(raw_message, epoch_year):
     """
     scm_message_decode decodes and converts the raw_message to an OrderedDict by calling scm.generated.scm_df_decode.
