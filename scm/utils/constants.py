@@ -65,3 +65,5 @@ transmission_decoded_type = "decode_type"
 transmission_decoded_raw_type = "raw"
 transmission_decoded_processed_type = "processed"
 
+timestamp_format = "%Y-%m-%dT%H:%M:%S%z"
+

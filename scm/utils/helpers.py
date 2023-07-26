@@ -27,6 +27,8 @@ from decimal import Decimal
 from enum import Enum
 from json import JSONEncoder
 
+from scm.utils.constants import timestamp_format
+
 
 class TransmissionEncoder(JSONEncoder):
     def default(self, to_encode):
@@ -35,5 +37,5 @@ class TransmissionEncoder(JSONEncoder):
         elif isinstance(to_encode, Decimal):
             return str(to_encode)
         elif type(to_encode) == datetime.datetime:
-            return to_encode.strftime("%Y-%m-%dT%H:%M:%S%z")
+            return to_encode.strftime(timestamp_format)
         return JSONEncoder.default(self, to_encode)
