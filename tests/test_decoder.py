@@ -143,6 +143,12 @@ class TestDecoder(TestCase):
         from pprint import pprint
         pprint(message)
 
+    def test_status_decode_2(self):
+        msg = "13260D9C0000003F3A0096000000000000000000000000".replace(" ", "")
+        message = scm_processed_message_decode(msg, DeviceEpoch().get_device_epoch(None))
+        from pprint import pprint
+        pprint(message)
+
     def test_tracking_v2_raw_decoder(self):
         msg = "0F4EE015085C0045FB87F6CDC001490842C0080B0010A002037000C4C7776C"
         message = scm_raw_message_decode(msg.replace(" ", ""), DeviceEpoch().get_device_epoch(None))

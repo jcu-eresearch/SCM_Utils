@@ -50,6 +50,7 @@ class SCM_DF_Transmission_Status_v1_0_Mode(Enum):
     Hibernation = 5
     BLE_Menu = 6
     Deployed = 7
+    Pedometer = 8
 
 
 class BCH32InvalidInputException(Exception): pass
