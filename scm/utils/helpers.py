@@ -38,4 +38,6 @@ class TransmissionEncoder(JSONEncoder):
             return str(to_encode)
         elif type(to_encode) == datetime.datetime:
             return to_encode.strftime(timestamp_format)
+        elif type(to_encode) == datetime.timezone:
+            return to_encode.utcoffset(None).total_seconds()
         return JSONEncoder.default(self, to_encode)

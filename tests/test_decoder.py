@@ -22,7 +22,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
+import json
 from copy import deepcopy
 from json import loads, dumps
 from unittest import TestCase
@@ -115,13 +115,13 @@ class TestDecoder(TestCase):
         "decode_type": "raw"
     }
 
-    def _test_decoder_raw(self):
+    def test_decoder_raw(self):
         message = scm_raw_message_decode(self.raw['values']['raw_data'], DeviceEpoch().get_device_epoch(self.raw['values']['device_id']))
         self.assertTrue(message[transmission_crc16_verified])
         self.assertTrue(message[transmission_bch32_verified])
         self.assertEqual(self.result, loads(dumps(message, cls=TransmissionEncoder)))
 
-    def _test_decoder_processed(self):
+    def test_decoder_processed(self):
         message = scm_processed_message_decode(
             self.processed['values']['RAW_DATA'],
             extra_id=0,
@@ -142,16 +142,19 @@ class TestDecoder(TestCase):
         message = scm_raw_message_decode(msg, DeviceEpoch().get_device_epoch(None))
         from pprint import pprint
         pprint(message)
+        print(json.dumps(message, cls=TransmissionEncoder))
 
     def test_status_decode_2(self):
         msg = "13260D9C0000003F3A0096000000000000000000000000".replace(" ", "")
         message = scm_processed_message_decode(msg, DeviceEpoch().get_device_epoch(None))
         from pprint import pprint
         pprint(message)
+        print(json.dumps(message, cls=TransmissionEncoder))
 
     def test_tracking_v2_raw_decoder(self):
         msg = "0F4EE015085C0045FB87F6CDC001490842C0080B0010A002037000C4C7776C"
         message = scm_raw_message_decode(msg.replace(" ", ""), DeviceEpoch().get_device_epoch(None))
         from pprint import pprint
         pprint(message)
+        print(json.dumps(message, cls=TransmissionEncoder))
 
