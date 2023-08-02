@@ -35,6 +35,9 @@ device_id_key = "device_id"
 
 
 class ThingsBoardProcessedExpert(KineisMessageHandler):
+    def __init__(self, device_epoch=DeviceEpoch()):
+        super().__init__()
+        self.device_epoch = device_epoch
 
     def validate_message(self, message):
         checked = None
@@ -51,6 +54,6 @@ class ThingsBoardProcessedExpert(KineisMessageHandler):
     def decode_message(self, message):
         if not self.validate_message(message):
             raise CorruptedMessage("The message is corrupt")
-        message = scm_processed_message_decode(message[values_key][raw_data_key], DeviceEpoch().get_device_epoch(message[values_key][device_id_key]))
+        message = scm_processed_message_decode(message[values_key][raw_data_key], self.device_epoch.get_device_epoch(message[values_key][device_id_key]))
         return message
 
