@@ -32,6 +32,8 @@ crc_key = "CRC_OK"
 checked_key = "checked"
 bch_status_key = "BCH_STATUS"
 device_id_key = "device_id"
+service_flag_key = "SERVICE_FLAG"
+message_counter_key = "MESSAGE_COUNTER"
 
 
 class ThingsBoardProcessedExpert(KineisMessageHandler):
@@ -39,7 +41,7 @@ class ThingsBoardProcessedExpert(KineisMessageHandler):
         super().__init__()
         self.device_epoch = device_epoch
 
-    def validate_message(self, message):
+    def is_bch_ok(self, message):
         checked = None
         bch32_status = None
         if values_key in message:
@@ -49,11 +51,21 @@ class ThingsBoardProcessedExpert(KineisMessageHandler):
 
             if bch_status_key in values:
                 bch32_status = values[bch_status_key]
-        return scm_is_bch32_ok(checked=checked, bch_status=bch32_status) and message[values_key][crc_key]
+        return scm_is_bch32_ok(checked=checked, bch_status=bch32_status)
+
+    def validate_message(self, message):
+        return self.is_bch_ok(message) and message[values_key][crc_key]
 
     def decode_message(self, message):
         if not self.validate_message(message):
             raise CorruptedMessage("The message is corrupt")
-        message = scm_processed_message_decode(message[values_key][raw_data_key], self.device_epoch.get_device_epoch(message[values_key][device_id_key]))
+        values = message[values_key]
+        message = scm_processed_message_decode(
+            values[raw_data_key],
+            extra_id=0,
+            service_flag=values[service_flag_key],
+            message_counter=values[message_counter_key],
+            crc16_ok=values[crc_key],
+            bch32_ok=self.is_bch_ok(message),
+            epoch_year=self.device_epoch.get_device_epoch(message[values_key][device_id_key]))
         return message
-
