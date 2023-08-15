@@ -151,6 +151,36 @@ class TestDecoder(TestCase):
         pprint(message)
         print(json.dumps(message, cls=TransmissionEncoder))
 
+    def test_status_decode_nt_1(self):
+        msg = "087100401EF7F96B1001474D42800E10C010A003844000 ".replace(" ", "")
+        message = scm_processed_message_decode(msg, DeviceEpoch().get_device_epoch(None))
+        from pprint import pprint
+        pprint(message)
+        print(json.dumps(message, cls=TransmissionEncoder))
+
+    def test_status_decode_nt_2(self):
+        msg = "087100401EF7F96B1001874C42C00C07C0109003843000".replace(" ", "")
+        message = scm_processed_message_decode(msg, DeviceEpoch().get_device_epoch(None))
+        from pprint import pprint
+        pprint(message)
+        print(json.dumps(message, cls=TransmissionEncoder))
+
+
+    def test_status_decode_nt_3(self):
+        msg = "0870C8401EF7F96B1001800042000C1440107003029000".replace(" ", "")
+        message = scm_processed_message_decode(msg, DeviceEpoch().get_device_epoch(None))
+        from pprint import pprint
+        pprint(message)
+        print(json.dumps(message, cls=TransmissionEncoder))
+
+
+    def test_status_decode_nt_4(self):
+        msg = "087100401EF7F96B1001774E42C00E04C010A003051000".replace(" ", "")
+        message = scm_processed_message_decode(msg, DeviceEpoch().get_device_epoch(None))
+        from pprint import pprint
+        pprint(message)
+        print(json.dumps(message, cls=TransmissionEncoder))
+
     def test_tracking_v2_raw_decoder(self):
         msg = "0F4EE015085C0045FB87F6CDC001490842C0080B0010A002037000C4C7776C"
         message = scm_raw_message_decode(msg.replace(" ", ""), DeviceEpoch().get_device_epoch(None))
